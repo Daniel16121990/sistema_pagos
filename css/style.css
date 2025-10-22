@@ -1,0 +1,92 @@
+:root{
+  --bg:#0b0b0b;
+  --card:#141414;
+  --muted:#9aa3a9;
+  --accent:#00bcd4;
+  --accent-2:#ff9800;
+  --text:#eaf6f7;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter, "Segoe UI", Roboto, system-ui, -apple-system, "Helvetica Neue", Arial;
+  background:linear-gradient(180deg,#070707 0%, #0f0f0f 100%);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  min-height:100vh;
+}
+.app-header{
+  background:linear-gradient(90deg, rgba(0,188,212,0.06), rgba(255,152,0,0.03));
+  padding:18px 22px;
+  backdrop-filter: blur(4px);
+  border-bottom:1px solid rgba(255,255,255,0.02);
+}
+.app-header h1{
+  margin:0;
+  color:var(--accent);
+  font-size:1.25rem;
+  letter-spacing:0.4px;
+}
+.container{
+  padding:28px;
+  max-width:980px;
+  margin:26px auto;
+  display:block;
+}
+.lead{color:var(--muted); margin:6px 0 18px;}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:16px;
+}
+.card{
+  background:var(--card);
+  padding:18px;
+  border-radius:12px;
+  text-decoration:none;
+  color:var(--text);
+  text-align:center;
+  font-weight:600;
+  font-size:1.05rem;
+  box-shadow:0 6px 20px rgba(0,0,0,0.6);
+  border:1px solid rgba(255,255,255,0.02);
+  transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.card:hover{ transform:translateY(-6px); box-shadow:0 14px 30px rgba(0,0,0,0.7); }
+.app-footer{
+  text-align:center;
+  padding:12px;
+  color:var(--muted);
+  border-top:1px solid rgba(255,255,255,0.02);
+  position:fixed; left:0; right:0; bottom:0; background:rgba(0,0,0,0.35);
+}
+.table{
+  width:100%;
+  border-collapse:collapse;
+}
+.table th, .table td{
+  padding:8px 10px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  text-align:left;
+  font-size:0.95rem;
+}
+.form-row{ display:flex; gap:10px; flex-wrap:wrap; }
+input, select, textarea, button{
+  background:#0d0d0d;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,0.03);
+  padding:10px 12px;
+  border-radius:8px;
+  font-size:0.95rem;
+}
+.btn{
+  background:linear-gradient(90deg,var(--accent), var(--accent-2));
+  color:#071018;
+  padding:10px 14px;
+  border-radius:10px;
+  font-weight:700;
+  border:none;
+  cursor:pointer;
+}
+.small-muted{ color:var(--muted); font-size:0.88rem }
