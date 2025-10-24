@@ -5,7 +5,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $cargo = $_POST['cargo'] ?? '';
     $sueldo = $_POST['sueldo'] ?? 0;
     $fecha = $_POST['fecha'] ?? null;
-    $stmt = $pdo->prepare('INSERT INTO trabajadores (nombre,cargo,sueldo_base,fecha_ingreso) VALUES (?,?,?,?)');
+    $stmt = $pdo->prepare('INSERT INTO trabajadores (nombre,cargo,sueldo_hora,fecha_ingreso) VALUES (?,?,?,?)');
     $stmt->execute([$nombre,$cargo,$sueldo,$fecha]);
     header('Location: listar.php');
     exit;
@@ -24,7 +24,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     <form method="post" action="agregar.php" style="max-width:520px">
       <div class="form-row"><input name="nombre" placeholder="Nombre completo" required /></div>
       <div class="form-row"><input name="cargo" placeholder="Cargo (ej. ayudante)" /></div>
-      <div class="form-row"><input name="sueldo" placeholder="Sueldo quincenal (ej. 200000)" required type="number" step="0.01" /></div>
+      <div class="form-row"><input name="sueldo" placeholder="Sueldo por hora (ej. 3000)" required type="number" step="0.01" /></div>
       <div class="form-row"><input name="fecha" placeholder="Fecha de ingreso (YYYY-MM-DD)" /></div>
       <div style="height:12px"></div>
       <button class="btn" type="submit">Guardar</button>

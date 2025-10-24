@@ -28,7 +28,7 @@ $rows = $stmt->fetchAll();
             <td><?php echo htmlspecialchars($r['id']); ?></td>
             <td><?php echo htmlspecialchars($r['nombre']); ?></td>
             <td><?php echo htmlspecialchars($r['cargo']); ?></td>
-            <td><?php echo number_format($r['sueldo_base'],2,',','.'); ?></td>
+            <td><?php echo number_format($r['sueldo_hora'],2,',','.'); ?></td>
             <td><?php echo htmlspecialchars($r['fecha_ingreso']); ?></td>
           </tr>
         <?php endforeach; ?>
