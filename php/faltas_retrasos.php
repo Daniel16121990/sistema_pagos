@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/conexion.php';
+
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $trabajador_id = $_POST['trabajador_id'];
     $fecha = $_POST['fecha'];
@@ -7,12 +8,15 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $motivo = $_POST['motivo'] ?? null;
     $descuento = $_POST['descuento'] ?? 0;
     $observacion = $_POST['observacion'] ?? null;
+
     $stmt = $pdo->prepare('INSERT INTO faltas_retrasos (trabajador_id, fecha, tipo, motivo, descuento, observacion) VALUES (?,?,?,?,?,?)');
     $stmt->execute([$trabajador_id,$fecha,$tipo,$motivo,$descuento,$observacion]);
     header('Location: faltas_retrasos.php');
     exit;
 }
-$trabajadores = $pdo->query('SELECT id,nombre FROM trabajadores ORDER BY nombre')->fetchAll();
+
+// ✅ Traemos también el sueldo_hora
+$trabajadores = $pdo->query('SELECT id, nombre, sueldo_hora FROM trabajadores ORDER BY nombre')->fetchAll();
 $registros = $pdo->query('SELECT f.*, t.nombre FROM faltas_retrasos f JOIN trabajadores t ON t.id = f.trabajador_id ORDER BY f.fecha DESC')->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -27,21 +31,32 @@ $registros = $pdo->query('SELECT f.*, t.nombre FROM faltas_retrasos f JOIN traba
   <main class="container">
     <form method="post" action="faltas_retrasos.php" style="max-width:720px; margin-bottom:18px;">
       <div class="form-row">
-        <select name="trabajador_id" required>
+        <!-- Selector de trabajador -->
+        <select name="trabajador_id" id="trabajador" required>
           <option value="">— Seleccioná trabajador —</option>
           <?php foreach($trabajadores as $t): ?>
-            <option value="<?php echo $t['id']; ?>"><?php echo htmlspecialchars($t['nombre']); ?></option>
+            <option 
+              value="<?php echo $t['id']; ?>" 
+              data-sueldo="<?php echo htmlspecialchars($t['sueldo_hora']); ?>">
+              <?php echo htmlspecialchars($t['nombre']); ?>
+            </option>
           <?php endforeach; ?>
         </select>
+
         <input name="fecha" type="date" value="<?php echo date('Y-m-d'); ?>" />
-        <select name="tipo" required>
+
+        <!-- Tipo -->
+        <select name="tipo" id="tipo" required>
           <option value="falta">Falta</option>
           <option value="retraso">Retraso</option>
         </select>
       </div>
+
       <div style="height:8px"></div>
+
       <input name="motivo" placeholder="Motivo (ej. enfermedad, viaje, irresponsabilidad)" />
-      <input name="descuento" type="number" step="0.01" placeholder="Descuento (ej. 200.00)" />
+      <input id="descuento" name="descuento" type="number" step="0.01" placeholder="Descuento (ej. 200.00)" required />
+
       <div style="height:8px"></div>
       <textarea name="observacion" placeholder="Observación (opcional)"></textarea>
       <div style="height:8px"></div>
@@ -70,5 +85,31 @@ $registros = $pdo->query('SELECT f.*, t.nombre FROM faltas_retrasos f JOIN traba
 
     <p style="margin-top:18px;"><a href="../index.html" class="small-muted">← Volver</a></p>
   </main>
+
+  <!-- Script para autocompletar el descuento -->
+  <script>
+  const selectTrabajador = document.getElementById('trabajador');
+  const selectTipo = document.getElementById('tipo');
+  const inputDescuento = document.getElementById('descuento');
+
+  function actualizarDescuento() {
+    const tipo = selectTipo.value;
+    const selected = selectTrabajador.options[selectTrabajador.selectedIndex];
+    const sueldo = selected.getAttribute('data-sueldo');
+
+    // Solo jala el sueldo si el tipo es "falta"
+    if (tipo === 'falta' && sueldo) {
+      inputDescuento.value = (parseFloat(sueldo) * 8).toFixed(2);
+    } 
+    // Si es retraso, limpia para que se pueda escribir manualmente
+    else if (tipo === 'retraso') {
+      inputDescuento.value = '';
+    }
+  }
+
+  // Ejecuta al cambiar tipo o trabajador
+  selectTrabajador.addEventListener('change', actualizarDescuento);
+  selectTipo.addEventListener('change', actualizarDescuento);
+  </script>
 </body>
 </html>
