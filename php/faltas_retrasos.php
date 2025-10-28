@@ -119,11 +119,12 @@ $registros = $pdo->query('SELECT f.*, t.nombre FROM faltas_retrasos f JOIN traba
           📋 Historial de Pagos
         </a>
       </div>
-      <div class="p-4 border-t border-gray-700">
-          <a href="../index.html" class="block text-sm text-indigo-400 hover:text-indigo-300 transition duration-200">
-              ← Volver al Dashboard
-          </a>
-      </div>
+		<!-- Enlace para volver al login -->
+			<div class="p-4 border-t border-gray-700">
+    			<a href="../logout.php" class="block text-sm text-red-400 hover:text-red-300 transition duration-200 font-medium">
+        		🚪 Cerrar Sesión
+    			</a>
+			</div>
     </nav>
 
     <div class="flex flex-col flex-1 lg:pl-0 pt-16 lg:pt-0">
