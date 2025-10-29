@@ -1,6 +1,6 @@
 <?php
 // Contraseña que estás intentando usar
-$password_a_hashear = '12345'; 
+$password_a_hashear = 'dany.007'; 
 $hash_generado = password_hash($password_a_hashear, PASSWORD_DEFAULT);
 
 echo "Contraseña: " . $password_a_hashear . "<br>";

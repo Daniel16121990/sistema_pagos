@@ -66,7 +66,7 @@
     </div>
 
     <footer class="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
-      &copy; <span id="year"><?php echo date('Y'); ?></span> Sistema de Pagos.
+      &copy; <span id="year"><?php echo date('Y'); ?></span> obrasDNL.
     </footer>
   </div>
   

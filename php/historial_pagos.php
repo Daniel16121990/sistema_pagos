@@ -240,11 +240,11 @@ foreach ($pagos as $p) $totalGeneral += $p['pago_neto'];
 									<td class="py-3 px-4 text-sm whitespace-nowrap text-indigo-300 font-semibold"><?php echo htmlspecialchars($p['nombre']); ?></td>
 									<td class="py-3 px-4 text-sm whitespace-nowrap"><?php echo date("d/m/Y", strtotime($p['desde'])); ?></td>
 									<td class="py-3 px-4 text-sm whitespace-nowrap"><?php echo date("d/m/Y", strtotime($p['hasta'])); ?></td>
-									<td class="py-3 px-4 text-sm text-right text-green-400 whitespace-nowrap font-mono">Bs <?php echo number_format($p['horas_extras'],2,',','.'); ?></td>
-									<td class="py-3 px-4 text-sm text-right text-green-400 whitespace-nowrap font-mono">Bs <?php echo number_format($p['bonos'],2,',','.'); ?></td>
-									<td class="py-3 px-4 text-sm text-right text-red-400 whitespace-nowrap font-mono">Bs <?php echo number_format($p['adelantos'],2,',','.'); ?></td>
-									<td class="py-3 px-4 text-sm text-right text-red-400 whitespace-nowrap font-mono">Bs <?php echo number_format($p['descuentos'],2,',','.'); ?></td>
-									<td class="py-3 px-4 text-sm text-right text-yellow-300 whitespace-nowrap font-extrabold">Bs <?php echo number_format($p['pago_neto'],2,',','.'); ?></td>
+									<td class="py-3 px-4 text-sm text-right text-green-400 whitespace-nowrap font-mono"> <?php echo number_format($p['horas_extras'],2,',','.'); ?></td>
+									<td class="py-3 px-4 text-sm text-right text-green-400 whitespace-nowrap font-mono"> <?php echo number_format($p['bonos'],2,',','.'); ?></td>
+									<td class="py-3 px-4 text-sm text-right text-red-400 whitespace-nowrap font-mono"> <?php echo number_format($p['adelantos'],2,',','.'); ?></td>
+									<td class="py-3 px-4 text-sm text-right text-red-400 whitespace-nowrap font-mono"> <?php echo number_format($p['descuentos'],2,',','.'); ?></td>
+									<td class="py-3 px-4 text-sm text-right text-yellow-300 whitespace-nowrap font-extrabold"> <?php echo number_format($p['pago_neto'],2,',','.'); ?></td>
 								</tr>
 								<?php endforeach; ?>
 							</tbody>
@@ -253,7 +253,7 @@ foreach ($pagos as $p) $totalGeneral += $p['pago_neto'];
 
 					<!-- Total General -->
 					<div class="total bg-gray-800 mt-4 rounded-lg p-4 shadow-xl">
-						Total General Pagado en el Filtro: <span class="text-3xl font-extrabold text-teal-400 block sm:inline-block mt-2 sm:mt-0">Bs <?php echo number_format($totalGeneral,2,',','.'); ?></span>
+						Total General Pagado en el Filtro: <span class="text-3xl font-extrabold text-teal-400 block sm:inline-block mt-2 sm:mt-0">ARS <?php echo number_format($totalGeneral,2,',','.'); ?></span>
 					</div>
 
 				<?php else: ?>
@@ -263,15 +263,13 @@ foreach ($pagos as $p) $totalGeneral += $p['pago_neto'];
 				</div>
 				<?php endif; ?>
 
-				<p class="mt-8">
-					<a href="../index.html" class="small-muted text-gray-500 hover:text-indigo-400 transition duration-200">← Volver al Dashboard</a>
-				</p>
+
 
 			</main>
 			
 			<!-- Pie de Página de la Aplicación -->
 			<footer class="app-footer p-4 text-center border-t border-gray-700 mt-8 bg-gray-800">
-				&copy; <span id="year-footer"></span> Sistema de Pagos. 📋 Historial.
+				&copy; <span id="year-footer"></span> Sistema de Pagos.
 			</footer>
 		</div>
 	</div>
