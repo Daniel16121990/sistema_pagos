@@ -1,5 +1,8 @@
 <?php
-require_once __DIR__.'/conexion.php';
+// Asegúrate de que este archivo esté en la carpeta /php/
+require_once __DIR__.'/conexion.php'; 
+
+// 1. Obtener lista de trabajadores para el <select>
 $trabajadores = $pdo->query('SELECT id,nombre,sueldo_hora FROM trabajadores ORDER BY nombre')->fetchAll();
 
 // Inicialización de variables para evitar errores PHP antes del primer POST
@@ -12,7 +15,8 @@ $positivos = $negativos = 0;
 $pagoBase = 0;
 $trabajador_nombre = 'Trabajador Seleccionado';
 $detAdelantos = $detHoras = $detFaltas = $detBonos = [];
-
+$diasTrabajables = 0; // Nueva variable para mostrar los días reales
+$horasBase = 0;       // Nueva variable para mostrar las horas base reales
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
     $trabajador = $_POST['trabajador'];
@@ -20,7 +24,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $hasta = $_POST['hasta'];
     $accion = $_POST['accion'] ?? 'reporte'; // 'reporte' o 'guardar'
 
-    // --- 1. Obtener Totales ---
+    // --- 1. Obtener Totales (Adelantos, Horas Extras, Descuentos, Bonos) ---
+    // (Estas consultas NO necesitan ser modificadas, ya filtran por rango de fecha)
+    
     $stmt = $pdo->prepare('SELECT IFNULL(SUM(monto),0) FROM adelantos WHERE trabajador_id=? AND fecha BETWEEN ? AND ?');
     $stmt->execute([$trabajador,$desde,$hasta]); 
     $adelantos = $stmt->fetchColumn();
@@ -44,23 +50,57 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $sueldo_hora = $trabajador_data['sueldo_hora'] ?? 0;
     $trabajador_nombre = $trabajador_data['nombre'] ?? 'Error';
 
-    // --- 3. Cálculos Finales ---
+    // ----------------------------------------------------------------------
+    // --- 3. CÁLCULOS DINÁMICOS DE PAGO BASE (NUEVA LÓGICA) ---
+    // ----------------------------------------------------------------------
+    
+    // Configuración de la jornada laboral
+    $horasJornada = 8; // Asumimos 8 horas diarias de trabajo normal
+
+    // 3a. Convertir las fechas a objetos DateTime
+    $fechaInicio = new DateTime($desde);
+    $fechaFin = new DateTime($hasta);
+    // Para incluir la fecha final en el rango, ajustamos el límite superior
+    $fechaFin->modify('+1 day'); 
+
+    $diasTrabajables = 0;
+    $intervalo = DateInterval::createFromDateString('1 day');
+    $periodo = new DatePeriod($fechaInicio, $intervalo, $fechaFin);
+
+    foreach ($periodo as $dt) {
+        // Obtenemos el día de la semana (N: 1=Lunes, ..., 7=Domingo)
+        $diaSemana = (int)$dt->format('N'); 
+        
+        // Excluimos domingos (Día 7) de los días base de pago.
+        if ($diaSemana !== 7) { 
+            $diasTrabajables++;
+        }
+    }
+    
+    // 3b. Calcular Horas Base y Pago Base
+    $horasBase = $diasTrabajables * $horasJornada;
+    $pagoBase = $sueldo_hora * $horasBase;
+
+    // 3c. Cálculo Final del Pago Neto (Ajustes)
     $positivos = $horasExtras + $bonos;
     $negativos = $adelantos + $descuentos;
-    // Base de cálculo quincenal (asumiendo 96 horas: 2 semanas * 48 horas/semana)
-    $pagoBase = $sueldo_hora * 96; 
+    
+    // Cálculo final: Pago Base (Horas reales) + Ingresos - Egresos
     $pagoNeto = $pagoBase + $positivos - $negativos;
+
 
     // --- 4. Guardar Pago (si se solicita) ---
     if ($accion === 'guardar') {
         $insert = $pdo->prepare('INSERT INTO pagos_realizados 
-            (trabajador_id, desde, hasta, sueldo_hora, horas_extras, bonos, adelantos, descuentos, pago_neto) 
-            VALUES (?,?,?,?,?,?,?,?,?)');
+            (trabajador_id, desde, hasta, sueldo_hora, horas_base, dias_base, horas_extras, bonos, adelantos, descuentos, pago_neto) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)');
         $insert->execute([
             $trabajador,
             $desde,
             $hasta,
             (float)$sueldo_hora,
+            (float)$horasBase,   // Nuevo: Guardar horas base
+            (int)$diasTrabajables, // Nuevo: Guardar días base
             (float)$horasExtras,
             (float)$bonos,
             (float)$adelantos,
@@ -71,11 +111,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
 
     // --- 5. Obtener Detalles para Tablas ---
+    // (Estas consultas son iguales, ya filtran correctamente por el rango)
     $detAdelantosStmt = $pdo->prepare('SELECT fecha, observacion, monto FROM adelantos WHERE trabajador_id=? AND fecha BETWEEN ? AND ? ORDER BY fecha');
     $detAdelantosStmt->execute([$trabajador,$desde,$hasta]);
     $detAdelantos = $detAdelantosStmt->fetchAll();
 
-    $detHorasStmt = $pdo->prepare('SELECT fecha, horas, total FROM horas_extras WHERE trabajador_id=? AND fecha BETWEEN ? AND ? ORDER BY fecha');
+    $detHorasStmt = $pdo->prepare('SELECT fecha, horas, total, observacion FROM horas_extras WHERE trabajador_id=? AND fecha BETWEEN ? AND ? ORDER BY fecha');
     $detHorasStmt->execute([$trabajador,$desde,$hasta]);
     $detHoras = $detHorasStmt->fetchAll();
 
@@ -93,10 +134,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reporte Quincenal - Sistema de Pagos</title>
-  <!-- Script para cargar Tailwind CSS -->
+  <title>Reporte Dinámico - Sistema de Pagos</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Dependencias de JS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
 
@@ -174,7 +213,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
 <body class="min-h-screen bg-gray-100 text-gray-900 transition-colors duration-300">
 
-  <!-- Botón Flotante para Móviles (Menú Hamburguesa) -->
   <button id="menu-toggle" class="fixed top-4 left-4 z-50 p-3 rounded-full bg-indigo-600 text-white shadow-xl lg:hidden focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition duration-150 ease-in-out" aria-label="Abrir Menú">
     <div id="menu-icon" class="menu-icon">
       <span></span>
@@ -183,10 +221,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     </div>
   </button>
 
-  <!-- Contenedor Principal: Define el layout responsivo -->
   <div class="lg:grid lg:grid-cols-[280px_1fr] min-h-screen">
 
-    <!-- Sidebar / Menú de Navegación -->
     <nav id="sidebar" class="
       /* Mobile: Fijo, oculto, deslizable */
       fixed inset-y-0 left-0 w-64 bg-gray-800 text-white z-40 
@@ -200,7 +236,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <h2 class="text-2xl font-bold text-indigo-400">Menú Principal</h2>
       </div>
       <div class="flex-1 p-4 space-y-2 overflow-y-auto">
-        <!-- Ítems del menú -->
         <a class="block px-4 py-3 rounded-lg text-gray-300 hover:bg-indigo-600 hover:text-white transition duration-200" href="listar.php">
           👷‍♂️ Trabajadores
         </a>
@@ -217,40 +252,33 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           🎁 Bonos
         </a>
         <a class="block px-4 py-3 rounded-lg text-white font-semibold bg-indigo-700" href="reporte.php">
-          📊 Reporte Quincenal (Actual)
+          📊 Reporte de Pago
         </a>
         <a class="block px-4 py-3 rounded-lg text-gray-300 hover:bg-indigo-600 hover:text-white transition duration-200" href="historial_pagos.php">
           📋 Historial de Pagos
         </a>
       </div>
-      		<!-- Enlace para volver al login -->
-			<div class="p-4 border-t border-gray-700">
-    			<a href="../logout.php" class="block text-sm text-red-400 hover:text-red-300 transition duration-200 font-medium">
-        		🚪 Cerrar Sesión
-    			</a>
-			</div>
+          <div class="p-4 border-t border-gray-700">
+        <a href="../logout.php" class="block text-sm text-red-400 hover:text-red-300 transition duration-200 font-medium">
+          🚪 Cerrar Sesión
+        </a>
+      </div>
     </nav>
 
-    <!-- Contenido Principal (Scrollable) -->
     <div class="flex flex-col flex-1 lg:pl-0 pt-16 lg:pt-0">
       
-      <!-- Encabezado de la Aplicación (Contenido) -->
       <header class="app-header bg-white shadow-md p-4 lg:p-6 sticky top-0 z-30">
-        <h1 class="text-2xl font-extrabold text-gray-800">Generador de Reporte Quincenal</h1>
+        <h1 class="text-2xl font-extrabold text-gray-800">Generador de Reporte de Pago Dinámico</h1>
       </header>
 
-      <!-- Área de Contenido Principal -->
       <main class="container p-6 flex-1">
         
-        <!-- Tarjeta del Formulario de Búsqueda -->
         <div class="w-full bg-white p-6 md:p-8 rounded-xl shadow-xl border border-gray-200 mb-8">
           <h2 class="text-xl font-bold mb-6 text-gray-700">Seleccionar Período y Trabajador</h2>
 
           <form method="post" action="reporte.php" class="space-y-4">
             
-            <!-- Fila de Inputs (Trabajador, Desde, Hasta) -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                <!-- Select Trabajador -->
                 <div class="md:col-span-2">
                     <label for="trabajador" class="block text-sm font-medium text-gray-700 mb-1">Trabajador</label>
                     <select 
@@ -269,7 +297,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     </select>
                 </div>
                 
-                <!-- Input Fecha Desde -->
                 <div>
                     <label for="desde" class="block text-sm font-medium text-gray-700 mb-1">Desde</label>
                     <input 
@@ -282,7 +309,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     />
                 </div>
 
-                <!-- Input Fecha Hasta -->
                 <div>
                     <label for="hasta" class="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
                     <input 
@@ -296,7 +322,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 </div>
             </div>
             
-            <!-- Botón de Envío -->
             <div class="pt-2">
                 <button class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 w-full md:w-auto" 
                         type="submit" 
@@ -318,41 +343,37 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
         <?php if(isset($pagoNeto)): ?>
           
-          <h2 class="text-2xl font-extrabold text-gray-800 mb-4">Reporte de Pago</h2>
+          <h2 class="text-2xl font-extrabold text-gray-800 mb-4">Resultado del Reporte</h2>
           <div class="bg-white p-6 md:p-8 rounded-xl shadow-xl border border-gray-200 mb-8" id="reporte">
             
-            <!-- Metadata del Reporte -->
             <div class="border-b pb-4 mb-4">
                 <h3 class="text-xl font-bold text-gray-800 mb-1">
                     Reporte para: <?php echo htmlspecialchars($trabajador_nombre); ?>
                 </h3>
                 <p class="text-gray-500 text-sm">Período: <?php echo date('d/m/Y', strtotime($desde)); ?> al <?php echo date('d/m/Y', strtotime($hasta)); ?></p>
-                <p class="text-gray-600 text-sm">Sueldo Base por Hora: <strong class="text-teal-600">$<?php echo number_format($sueldo_hora, 2, ',', '.'); ?></strong></p>
-                <p class="text-gray-600 text-sm">Pago Base (96 Horas): <strong class="text-teal-600">$<?php echo number_format($pagoBase, 2, ',', '.'); ?></strong></p>
-            </div>
+                
+                <p class="text-gray-600 text-sm mt-2">Sueldo Base por Hora: <strong class="text-teal-600">$<?php echo number_format($sueldo_hora, 2, ',', '.'); ?></strong></p>
+                <p class="text-gray-600 text-sm">Días Base Trabajables (sin domingos): <strong class="text-teal-600"><?php echo $diasTrabajables; ?> días</strong></p>
+                <p class="text-gray-600 text-sm">Pago Base (<?php echo $horasBase; ?> Horas): <strong class="text-teal-600">$<?php echo number_format($pagoBase, 2, ',', '.'); ?></strong></p>
+                </div>
             
-            <!-- Resumen de Totales (Grid) -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <!-- Tarjeta de Pago Neto -->
                 <div class="md:col-span-1 bg-indigo-600 text-white p-5 rounded-xl shadow-lg transform hover:scale-[1.02] transition duration-300">
                     <p class="text-sm font-medium opacity-80">PAGO NETO ESTIMADO</p>
                     <h2 class="text-3xl font-extrabold mt-1">$<?php echo number_format($pagoNeto, 2, ',', '.'); ?></h2>
                 </div>
                 
-                <!-- Tarjeta de Positivos -->
                 <div class="bg-green-100 text-green-700 p-5 rounded-xl shadow-md">
                     <p class="text-sm font-medium">TOTAL INGRESOS (Bonos + H.E.)</p>
                     <h2 class="text-2xl font-bold mt-1">+$<?php echo number_format($positivos, 2, ',', '.'); ?></h2>
                 </div>
                 
-                <!-- Tarjeta de Negativos -->
                 <div class="bg-red-100 text-red-700 p-5 rounded-xl shadow-md">
                     <p class="text-sm font-medium">TOTAL EGRESOS (Adelantos + Desc.)</p>
                     <h2 class="text-2xl font-bold mt-1">-$<?php echo number_format($negativos, 2, ',', '.'); ?></h2>
                 </div>
             </div>
 
-            <!-- Gráfico de Contribuciones -->
             <div class="mb-8">
                 <h4 class="text-lg font-semibold text-gray-700 mb-3 border-b pb-2">Distribución de Ajustes</h4>
                 <div class="relative max-w-lg mx-auto">
@@ -360,10 +381,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 </div>
             </div>
             
-            <!-- Detalles de Componentes -->
             <h4 class="text-lg font-semibold text-gray-700 mb-3 border-b pb-2">Detalle de Transacciones</h4>
 
-            <!-- Adelantos -->
             <details class="custom-details mb-2">
               <summary>
                 <span>💰 Adelantos Realizados</span>
@@ -387,31 +406,34 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
               </div>
             </details>
             
-            <!-- Horas Extras -->
             <details class="custom-details mb-2">
-              <summary>
-                <span>⏱️ Horas Extras Trabajadas</span>
-                <span class="text-green-600 font-bold">+$<?php echo number_format($horasExtras, 2, ',', '.'); ?></span>
-              </summary>
-              <div class="custom-details-content table-container">
-                <table class="w-full text-left detalle min-w-[400px]">
-                  <thead class="text-xs uppercase text-gray-500">
-                    <tr><th>Fecha</th><th>Horas</th><th class="text-right">Total</th></tr>
-                  </thead>
-                  <tbody>
-                    <?php foreach($detHoras as $h): ?>
-                      <tr class="border-b border-gray-100">
-                        <td class="py-2 px-1 text-xs whitespace-nowrap"><?php echo date('d/m/Y', strtotime($h['fecha'])); ?></td>
-                        <td class="py-2 px-1 text-xs text-center"><?php echo $h['horas']; ?></td>
-                        <td class="py-2 px-1 text-xs text-right text-green-600 font-mono whitespace-nowrap">+$<?php echo number_format($h['total'], 2, ',', '.'); ?></td>
-                      </tr>
-                    <?php endforeach; ?>
-                  </tbody>
-                </table>
-              </div>
-            </details>
+  <summary>
+    <span>⏱️ Horas Extras Trabajadas</span>
+    <span class="text-green-600 font-bold">+$<?php echo number_format($horasExtras, 2, ',', '.'); ?></span>
+  </summary>
+  <div class="custom-details-content table-container">
+    <table class="w-full text-left detalle min-w-[500px]"> <thead class="text-xs uppercase text-gray-500">
+        <tr>
+          <th>Fecha</th>
+          <th>Horas</th>
+          <th>Observación</th>
+          <th class="text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach($detHoras as $h): ?>
+          <tr class="border-b border-gray-100">
+            <td class="py-2 px-1 text-xs whitespace-nowrap"><?php echo date('d/m/Y', strtotime($h['fecha'])); ?></td>
+            <td class="py-2 px-1 text-xs text-center"><?php echo $h['horas']; ?></td>
+            <td class="py-2 px-1 text-xs"><?php echo htmlspecialchars($h['observacion'] ?? '—'); ?></td>
+            <td class="py-2 px-1 text-xs text-right text-green-600 font-mono whitespace-nowrap">+$<?php echo number_format($h['total'], 2, ',', '.'); ?></td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+</details>
 
-            <!-- Faltas / Descuentos -->
             <details class="custom-details mb-2">
               <summary>
                 <span>📅 Faltas y Retrasos Descontados</span>
@@ -435,7 +457,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
               </div>
             </details>
             
-            <!-- Bonos -->
             <details class="custom-details mb-2">
               <summary>
                 <span>🎁 Bonos Otorgados</span>
@@ -460,7 +481,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             </details>
           </div>
 
-          <!-- Botones de Acción (Fuera del div#reporte para no incluir en el PDF) -->
           <div class="flex flex-col md:flex-row gap-4 mb-8">
             <button class="flex-1 px-6 py-3 bg-teal-600 text-white font-bold rounded-lg shadow-md hover:bg-teal-700 transition duration-300" id="btn-pdf" type="button">
               <span class="inline-block mr-2">📤</span> Exportar PDF
@@ -476,7 +496,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             </form>
           </div>
 
-          <!-- Chart.js and PDF Script -->
           <script>
             // Solo inicializar Chart.js si hay datos
             document.addEventListener('DOMContentLoaded', function() {
@@ -501,10 +520,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                                   bonos
                               ],
                               backgroundColor: [
-                                  'rgba(239, 68, 68, 0.8)',  // red-500 (Adelantos)
+                                  'rgba(239, 68, 68, 0.8)',  // red-500 (Adelantos)
                                   'rgba(20, 184, 166, 0.8)', // teal-500 (Horas Extras)
                                   'rgba(124, 58, 237, 0.8)', // violet-600 (Descuentos)
-                                  'rgba(34, 197, 94, 0.8)'   // green-500 (Bonos)
+                                  'rgba(34, 197, 94, 0.8)'   // green-500 (Bonos)
                               ],
                               borderColor: 'rgba(255, 255, 255, 1)',
                               borderWidth: 1
@@ -539,11 +558,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 
                 // Opciones de configuración para el PDF (ajustar margen, tamaño)
                 var opt = {
-                    margin:       1,
-                    filename:     'reporte_pago_' + workerName.replace(/\s/g, '_') + '_' + dateRange + '.pdf',
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, logging: true, dpi: 192, letterRendering: true },
-                    jsPDF:        { unit: 'cm', format: 'a4', orientation: 'portrait' }
+                    margin:       1,
+                    filename:     'reporte_pago_' + workerName.replace(/\s/g, '_') + '_' + dateRange + '.pdf',
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, logging: true, dpi: 192, letterRendering: true },
+                    jsPDF:        { unit: 'cm', format: 'a4', orientation: 'portrait' }
                 };
 
                 html2pdf().set(opt).from(element).save();
@@ -553,17 +572,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         
       </main>
 
-      <!-- Pie de Página de la Aplicación -->
       <footer class="app-footer p-4 text-center border-t border-gray-200 mt-8 bg-white">
         &copy; <span id="year-footer"></span> Sistema de Pagos. 📊
       </footer>
     </div>
   </div>
   
-  <!-- Overlay oscuro para dispositivos móviles -->
   <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden lg:hidden transition-opacity duration-300 opacity-0" aria-hidden="true"></div>
 
-  <!-- Script para la lógica del menú responsivo -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       
@@ -611,7 +627,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       });
       
       if (isMobile()) {
-         sidebar.classList.add('-translate-x-full');
+          sidebar.classList.add('-translate-x-full');
       }
     });
   </script>
