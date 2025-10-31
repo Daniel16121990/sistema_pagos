@@ -177,7 +177,20 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
             </p>
         </div>
                 
-        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="card p-6 bg-white dark:bg-gray-700 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 transition duration-150">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1">Total Trabajadores</h3>
+                <p class="text-3xl font-extrabold text-indigo-500">0</p>
+            </div>
+               <div class="card p-6 bg-white dark:bg-gray-700 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 transition duration-150">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1">Adelantos Pendientes</h3>
+                <p class="text-3xl font-extrabold text-red-500">0.00 $</p>
+            </div>
+               <div class="card p-6 bg-white dark:bg-gray-700 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 transition duration-150">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1">Próximo Pago</h3>
+                <p class="text-lg font-bold text-green-500">Pendiente</p>
+            </div>
+        </div>
       </main>
       <footer id="app-footer" class="app-footer p-4 text-center border-t border-gray-200 dark:border-gray-700 mt-8 bg-white dark:bg-gray-700">
         &copy; <span id="year"></span> obrasDNL.
