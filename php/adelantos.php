@@ -1,5 +1,20 @@
 <?php
 require_once __DIR__.'/conexion.php';
+
+// --- LÓGICA DE ELIMINACIÓN ---
+if (isset($_GET['accion']) && $_GET['accion'] === 'eliminar' && isset($_GET['id'])) {
+    $id_a_eliminar = $_GET['id'];
+    
+    // Preparar y ejecutar la eliminación
+    $stmt = $pdo->prepare('DELETE FROM adelantos WHERE id = ?');
+    $stmt->execute([$id_a_eliminar]);
+
+    // Redireccionar para evitar re-envío del formulario (Post/Redirect/Get pattern)
+    header('Location: adelantos.php?mensaje=eliminado');
+    exit;
+}
+
+// --- LÓGICA DE REGISTRO (POST) ---
 if($_SERVER['REQUEST_METHOD']==='POST'){
     $trabajador = $_POST['trabajador'] ?? '';
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
@@ -9,12 +24,27 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $stmt = $pdo->prepare('INSERT INTO adelantos (trabajador_id,fecha,monto,observacion) VALUES (?,?,?,?)');
     $stmt->execute([$trabajador,$fecha,$monto,$obs]);
 
-    header('Location: adelantos.php');
+    header('Location: adelantos.php?mensaje=guardado');
     exit;
 }
 
-$trabajadores = $pdo->query('SELECT id,nombre FROM trabajadores ORDER BY nombre')->fetchAll();
+// --- CONSULTAS DE DATOS ---
+$trabajadores = $pdo->query('SELECT id,nombre FROM trabajadores WHERE activo = TRUE ORDER BY nombre')->fetchAll(); // Solo activos
+
+// Seleccionamos todos los campos de adelantos (a.*) y el nombre del trabajador (t.nombre)
+// IMPORTANTE: Asegúrate de que la tabla adelantos tenga una columna 'id' como clave primaria
 $rows = $pdo->query('SELECT a.*, t.nombre FROM adelantos a JOIN trabajadores t ON t.id = a.trabajador_id ORDER BY a.fecha DESC')->fetchAll();
+
+
+// --- MANEJO DE MENSAJES DE ESTADO ---
+$mensaje_estado = null;
+if (isset($_GET['mensaje'])) {
+    if ($_GET['mensaje'] === 'guardado') {
+        $mensaje_estado = ['tipo' => 'success', 'texto' => '✅ Adelanto registrado correctamente.'];
+    } elseif ($_GET['mensaje'] === 'eliminado') {
+        $mensaje_estado = ['tipo' => 'warning', 'texto' => '🗑️ Adelanto eliminado correctamente.'];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -76,7 +106,6 @@ $rows = $pdo->query('SELECT a.*, t.nombre FROM adelantos a JOIN trabajadores t O
 
 <body class="min-h-screen bg-gray-100 text-gray-900 transition-colors duration-300">
 
-    <!-- Botón menú móvil -->
     <button id="menu-toggle" class="fixed top-4 left-4 z-50 p-3 rounded-full bg-indigo-600 text-white shadow-xl lg:hidden focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition" aria-label="Abrir Menú">
         <div id="menu-icon" class="menu-icon">
             <span></span><span></span><span></span>
@@ -85,7 +114,6 @@ $rows = $pdo->query('SELECT a.*, t.nombre FROM adelantos a JOIN trabajadores t O
 
     <div class="lg:grid lg:grid-cols-[280px_1fr] min-h-screen">
 
-        <!-- Sidebar -->
         <nav id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-gray-800 text-white z-40 
             transition-transform duration-300 transform -translate-x-full shadow-2xl
             lg:shadow-none lg:relative lg:translate-x-0 lg:flex lg:flex-col lg:h-auto">
@@ -109,13 +137,23 @@ $rows = $pdo->query('SELECT a.*, t.nombre FROM adelantos a JOIN trabajadores t O
             </div>
         </nav>
 
-        <!-- Contenido principal -->
         <div class="flex flex-col flex-1 pt-16 lg:pt-0">
             <header class="bg-white shadow-md p-4 lg:p-6 sticky top-0 z-30 flex justify-between items-center">
                 <h1 class="text-2xl font-extrabold text-gray-800">Registro de Adelantos</h1>
             </header>
 
             <main class="container p-6 flex-1">
+                
+                <?php if ($mensaje_estado): 
+                    $color_class = $mensaje_estado['tipo'] === 'success' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-red-100 border-red-500 text-red-700';
+                ?>
+                    <div class="
+                        <?php echo $color_class; ?> 
+                        border-l-4 p-4 rounded-lg mb-8" role="alert">
+                        <p class="font-bold"><?php echo $mensaje_estado['texto']; ?></p>
+                    </div>
+                <?php endif; ?>
+                
                 <div class="w-full bg-white p-6 md:p-8 rounded-xl shadow-xl border border-gray-200 mb-8">
                     <h2 class="text-xl font-bold mb-6 text-gray-700">Registrar Nuevo Adelanto</h2>
 
@@ -162,18 +200,18 @@ $rows = $pdo->query('SELECT a.*, t.nombre FROM adelantos a JOIN trabajadores t O
                     <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                         <div class="overflow-x-auto">
                             <div class="max-h-[500px] overflow-y-auto scroll-custom">
-                                <table class="w-full text-left min-w-[640px]">
+                                <table class="w-full text-left min-w-[768px]">
                                     <thead class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal sticky top-0 z-10">
                                         <tr>
                                             <th class="py-3 px-6 text-left">Fecha</th>
                                             <th class="py-3 px-6 text-left">Trabajador</th>
                                             <th class="py-3 px-6 text-right">Monto</th>
                                             <th class="py-3 px-6 text-left">Obs</th>
-                                        </tr>
+                                            <th class="py-3 px-6 text-center">Acciones</th> </tr>
                                     </thead>
                                     <tbody id="tabla-adelantos" class="text-gray-600 text-sm font-light">
                                         <?php foreach($rows as $r): ?>
-                                            <tr class="border-b border-gray-200 hover:bg-indigo-50 cursor-pointer transition">
+                                            <tr class="border-b border-gray-200 hover:bg-indigo-50 transition"> 
                                                 <td class="py-3 px-6 text-left whitespace-nowrap">
                                                     <?php echo date('d-m-Y', strtotime($r['fecha'])); ?>
                                                 </td>
@@ -185,6 +223,25 @@ $rows = $pdo->query('SELECT a.*, t.nombre FROM adelantos a JOIN trabajadores t O
                                                 </td>
                                                 <td class="py-3 px-6 text-left">
                                                     <?php echo $r['observacion'] ? htmlspecialchars($r['observacion']) : '—'; ?>
+                                                </td>
+                                                
+                                                <td class="py-3 px-6 text-center whitespace-nowrap space-x-2">
+                                                    <a href="editar_adelanto.php?id=<?php echo htmlspecialchars($r['id']); ?>" 
+                                                       class="inline-flex items-center justify-center p-2 text-indigo-600 hover:text-indigo-800 transition duration-150 rounded-full hover:bg-indigo-100" 
+                                                       title="Editar Adelanto">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-3.22 3.22L7.788 8.828 5.172 6.212l1.414-1.414 3.22 3.22zm-7.667 9.873L2.343 17.657 5.2 14.8l2.828 2.828-3.22 3.22z"/>
+                                                        </svg>
+                                                    </a>
+                                                    
+                                                    <a href="adelantos.php?accion=eliminar&id=<?php echo htmlspecialchars($r['id']); ?>" 
+                                                       class="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-800 transition duration-150 rounded-full hover:bg-red-100" 
+                                                       title="Eliminar Adelanto"
+                                                       onclick="return confirm('¿Estás seguro de que deseas eliminar este adelanto de $<?php echo number_format($r['monto'], 2, ',', '.'); ?> para <?php echo addslashes(htmlspecialchars($r['nombre'])); ?>? Esta acción es irreversible.');">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm6 1a1 1 0 100 2h1a1 1 0 100-2h-1zm-6 3a1 1 0 100 2h1a1 1 0 100-2H7z" clip-rule="evenodd" />
+                                                        </svg>
+                                                    </a>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -208,6 +265,7 @@ $rows = $pdo->query('SELECT a.*, t.nombre FROM adelantos a JOIN trabajadores t O
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('year-footer').textContent = new Date().getFullYear();
 
+            // Lógica de menú (sin cambios)
             const menuToggle = document.getElementById('menu-toggle');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('overlay');
@@ -240,14 +298,7 @@ $rows = $pdo->query('SELECT a.*, t.nombre FROM adelantos a JOIN trabajadores t O
             });
             if (isMobile()) sidebar.classList.add('-translate-x-full');
 
-            // === Selección de filas ===
-            const filas = document.querySelectorAll('#tabla-adelantos tr');
-            filas.forEach(fila => {
-                fila.addEventListener('click', () => {
-                    filas.forEach(f => f.classList.remove('selected-row'));
-                    fila.classList.add('selected-row');
-                });
-            });
+            // Eliminamos la lógica de `selected-row` ya que la fila ya no es solo para visualización, sino que tiene botones de acción.
         });
     </script>
 </body>
