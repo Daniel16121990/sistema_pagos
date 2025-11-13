@@ -229,8 +229,9 @@ if (isset($_GET['mensaje'])) {
                                                     <a href="editar_adelanto.php?id=<?php echo htmlspecialchars($r['id']); ?>" 
                                                        class="inline-flex items-center justify-center p-2 text-indigo-600 hover:text-indigo-800 transition duration-150 rounded-full hover:bg-indigo-100" 
                                                        title="Editar Adelanto">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-3.22 3.22L7.788 8.828 5.172 6.212l1.414-1.414 3.22 3.22zm-7.667 9.873L2.343 17.657 5.2 14.8l2.828 2.828-3.22 3.22z"/>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5">
+                                                            <path fill="#4f46e5" d="M3 17.25V21h3.75l11-11.03-3.75-3.75L3 17.25z"/>
+                                                            <path fill="#4f46e5" d="M20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                                                         </svg>
                                                     </a>
                                                     
